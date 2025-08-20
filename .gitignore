@@ -75,8 +75,12 @@ coverage/
 # Temporary Research and Review Files
 research_*.md
 review_*.md
-configs/dev/.claude/review/
-configs/dev/.claude/temp/
+configs/*/.claude/review/
+configs/*/.claude/temp/
+.claude
+.mcp.json
+**/CLAUDE.local.md
+**/settings.local.json
 
 # Personal Notes and Drafts
 NOTES.md

@@ -2,8 +2,8 @@
 
 # Claude Code Configuration Installation Script
 # Usage: 
-#   ./install.sh <path> <config-name>        # Project installation
-#   ./install.sh --global <config-name>     # Global installation
+#   ./install.sh <config-name> <path>        # Project installation
+#   ./install.sh <config-name> --global     # Global installation
 
 set -e
 
@@ -26,12 +26,12 @@ print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 # Show usage
 show_usage() {
     echo "Usage:"
-    echo "  $0 <path> <config-name>        # Install to project directory"
-    echo "  $0 --global <config-name>     # Install globally to ~/.claude"
+    echo "  $0 <config-name> <path>        # Install to project directory"
+    echo "  $0 <config-name> --global     # Install globally to ~/.claude"
     echo ""
     echo "Examples:"
-    echo "  $0 /my/project dev            # Install 'dev' config to /my/project"
-    echo "  $0 --global dev               # Install 'dev' config globally"
+    echo "  $0 dev /my/project            # Install 'dev' config to /my/project"
+    echo "  $0 dev --global               # Install 'dev' config globally"
     echo ""
     echo "Available configurations:"
     for config in "$SCRIPT_DIR/configs"/*; do
@@ -44,26 +44,32 @@ show_usage() {
 # Create backup with timestamp
 create_backup() {
     local target_dir="$1"
-    local backup_suffix="backup-$(date +%Y%m%d-%H%M%S)"
+    local backup_timestamp="$(date +%Y%m%d-%H%M%S)"
+    local backup_dir="$SCRIPT_DIR/backups"
+    
+    # Create backups directory if it doesn't exist
+    if [ -d "$target_dir/.claude" ] || [ -f "$target_dir/CLAUDE.md" ] || [ -f "$target_dir/.claude/CLAUDE.md" ]; then
+        mkdir -p "$backup_dir"
+    fi
     
     if [ -d "$target_dir/.claude" ]; then
         print_info "Creating backup of existing .claude directory..."
-        cp -r "$target_dir/.claude" "$target_dir/.claude.$backup_suffix"
-        print_success "Backup created: $target_dir/.claude.$backup_suffix"
+        cp -r "$target_dir/.claude" "$backup_dir/.claude-$backup_timestamp"
+        print_success "Backup created: $backup_dir/.claude-$backup_timestamp"
     fi
     
     # For project installations, also backup CLAUDE.md
     if [ "$target_dir" != "$HOME" ] && [ -f "$target_dir/CLAUDE.md" ]; then
         print_info "Creating backup of existing CLAUDE.md..."
-        cp "$target_dir/CLAUDE.md" "$target_dir/CLAUDE.md.$backup_suffix"
-        print_success "Backup created: $target_dir/CLAUDE.md.$backup_suffix"
+        cp "$target_dir/CLAUDE.md" "$backup_dir/CLAUDE.md-$backup_timestamp"
+        print_success "Backup created: $backup_dir/CLAUDE.md-$backup_timestamp"
     fi
     
     # For global installations, backup CLAUDE.md in ~/.claude
     if [ "$target_dir" = "$HOME" ] && [ -f "$HOME/.claude/CLAUDE.md" ]; then
         print_info "Creating backup of existing CLAUDE.md..."
-        cp "$HOME/.claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md.$backup_suffix"
-        print_success "Backup created: $HOME/.claude/CLAUDE.md.$backup_suffix"
+        cp "$HOME/.claude/CLAUDE.md" "$backup_dir/CLAUDE.md-$backup_timestamp"
+        print_success "Backup created: $backup_dir/CLAUDE.md-$backup_timestamp"
     fi
 }
 
@@ -99,10 +105,15 @@ install_mcp_servers() {
         
         if [ "$server_type" = "sse" ]; then
             local url=$(jq -r ".mcpServers[\"$server_name\"].url" "$mcp_file")
-            if claude mcp add --transport sse -s "$scope" "$server_name" "$url" 2>/dev/null; then
+            local output=$(claude mcp add --transport sse -s "$scope" "$server_name" "$url" 2>&1)
+            local exit_code=$?
+            
+            if echo "$output" | grep -q "already exists"; then
+                print_warning "MCP server '$server_name' is already installed, skipping"
+            elif [ $exit_code -eq 0 ]; then
                 print_success "Installed SSE MCP server: $server_name"
             else
-                print_error "Failed to install SSE MCP server: $server_name"
+                print_error "Failed to install SSE MCP server: $server_name - $output"
             fi
             
         elif [ "$server_type" = "stdio" ]; then
@@ -115,13 +126,48 @@ install_mcp_servers() {
                 full_command="$full_command $args"
             fi
             
-            if eval "$full_command" 2>/dev/null; then
+            local output=$(eval "$full_command" 2>&1)
+            local exit_code=$?
+            
+            if echo "$output" | grep -q "already exists"; then
+                print_warning "MCP server '$server_name' is already installed, skipping"
+            elif [ $exit_code -eq 0 ]; then
                 print_success "Installed STDIO MCP server: $server_name"
             else
-                print_error "Failed to install STDIO MCP server: $server_name"
+                print_error "Failed to install STDIO MCP server: $server_name - $output"
             fi
         else
             print_error "Unsupported MCP server type '$server_type' for server '$server_name'"
+        fi
+    done
+}
+
+# Copy specific config parts individually
+copy_config_parts() {
+    local source_dir="$1"
+    local target_dir="$2"
+    
+    # Create target .claude directory if it doesn't exist
+    mkdir -p "$target_dir/.claude"
+    
+    # List of directories and files to copy
+    local parts=("agents" "commands" "hooks" "output-styles" "status-lines" "mcp" "settings.json")
+    
+    for part in "${parts[@]}"; do
+        local source_path="$source_dir/.claude/$part"
+        local target_path="$target_dir/.claude/$part"
+        
+        if [ -e "$source_path" ]; then
+            print_info "Installing $part"
+            if [ -d "$source_path" ]; then
+                # For directories, create target and copy contents
+                mkdir -p "$target_path"
+                cp -r "$source_path"/* "$target_path/" 2>/dev/null || true
+            else
+                # For files, copy directly
+                cp "$source_path" "$target_path"
+            fi
+            print_success "Installed $part"
         fi
     done
 }
@@ -153,11 +199,9 @@ install_config() {
     # Create target directory if needed
     mkdir -p "$target_dir"
     
-    # Copy .claude directory
+    # Copy configuration parts individually
     print_info "Installing Claude Code configuration: $config_name"
-    rm -rf "$target_dir/.claude"
-    cp -r "$config_dir/.claude" "$target_dir/.claude"
-    print_success "Installed .claude directory"
+    copy_config_parts "$config_dir" "$target_dir"
     
     # Handle CLAUDE.md placement
     if [ "$is_global" = "true" ]; then
@@ -198,21 +242,21 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-if [ "$1" = "--global" ]; then
+if [ "$2" = "--global" ]; then
     # Global installation
     if [ $# -ne 2 ]; then
-        print_error "Global installation requires exactly one config name"
+        print_error "Global installation requires exactly one config name and --global"
         show_usage
         exit 1
     fi
     
-    config_name="$2"
+    config_name="$1"
     install_config "$HOME" "$config_name" "true"
     
 elif [ $# -eq 2 ]; then
     # Project installation
-    project_path="$1"
-    config_name="$2"
+    config_name="$1"
+    project_path="$2"
     
     # Convert to absolute path
     if [ ! -d "$project_path" ]; then
