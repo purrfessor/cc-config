@@ -1,0 +1,84 @@
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and Editor Files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Claude Code Local Files
+logs/
+*.log
+*.log.*
+temp/
+tmp/
+.temp/
+.tmp/
+
+# Backup Files
+*.bak
+*.backup
+*.orig
+*.old
+
+# Python Files (for status line and other Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+
+# Node.js Files (in case of any JS tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment and Configuration
+.env
+.env.local
+.env.*.local
+*.local
+
+# Build Artifacts
+dist/
+build/
+*.egg-info/
+
+# Cache Directories
+.cache/
+.npm/
+.yarn/
+
+# Test Coverage
+coverage/
+.coverage
+.nyc_output/
+
+# Temporary Research and Review Files
+research_*.md
+review_*.md
+configs/dev/.claude/review/
+configs/dev/.claude/temp/
+
+# Personal Notes and Drafts
+NOTES.md
+TODO.md
+DRAFT_*

@@ -1,0 +1,50 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr list:*)",
+      "Bash(find:*)",
+      "Bash(xargs:*)",
+      "Bash(head:*)",
+      "Bash(grep:*)",
+      "Bash(mvn:*)",
+      "Bash(git add:*)",
+      "Bash(tar:*)",
+      "Bash(ls:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker:*)",
+      "Bash(true)",
+      "WebFetch",
+      "Bash(pip:*)",
+      "Bash(./mvnw test:*)",
+      "Bash(env)",
+      "Bash(chmod:*)",
+      "Bash(javac:*)",
+      "mcp__deepwiki",
+      "mcp__context7",
+      "mcp__sequential-thinking",
+      "Bash(sed:*)",
+      "Edit(./**/CLAUDE.md)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Bash(docker-compose:*)"
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "uv run /Users/purrfessor/projects/cc-config/.claude/status-lines/status_line.py",
+    "padding": 0
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat /Users/nkreskin/.claude/hooks/orchestrator_reminder.md"
+          }
+        ]
+      }
+    ]
+  }
+}
